@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -16,7 +18,6 @@ type Task struct {
 }
 
 var Tasks []Task
-var idCounter int = 1
 
 func markToDo(TaskID int) Task {
 	for i, task := range Tasks {
@@ -59,9 +60,6 @@ func loadTasks() error {
 	err = json.Unmarshal(file, &Tasks)
 	if err != nil {
 		return err
-	}
-	if len(Tasks) > 0 {
-		idCounter = Tasks[len(Tasks)-1].ID + 1
 	}
 	return nil
 }
@@ -116,21 +114,41 @@ func updateTask(TaskID int, newDescription string) Task {
 			Tasks[i].UpdatedAt = time.Now().Format(time.RFC1123)
 		}
 	}
+	msg := fmt.Sprintf("Задача обновлена успешно (ID: %d)", TaskID)
+	fmt.Println(msg)
 	saveTasks()
 	return Tasks[TaskID-1]
 }
 
-// TODO: добавить проверку на неиспользуемые ID при добавлении задачи
+func findUnusedID() int {
+	used := make(map[int]bool, len(Tasks))
+	max := 0
+	for _, t := range Tasks {
+		used[t.ID] = true
+		if t.ID > max {
+			max = t.ID
+		}
+	}
+	for i := 1; i <= max; i++ {
+		if !used[i] {
+			return i
+		}
+	}
+	return max + 1
+}
+
 func addTask(description string) Task {
+	id := findUnusedID()
+
 	var task = Task{
-		ID:          idCounter,
+		ID:          id,
 		Description: description,
 		Status:      "todo",
 		CreatedAt:   time.Now().Format(time.RFC1123),
 		UpdatedAt:   "none",
 	}
+
 	Tasks = append(Tasks, task)
-	idCounter++
 	msg := fmt.Sprintf("Задача добавлена успешно (ID: %d)", task.ID)
 	fmt.Println(msg)
 	saveTasks()
@@ -157,9 +175,84 @@ func printUsage() {
 	fmt.Println("  mark-in-progress <id>      - Пометить задачу как 'in-progress'")
 	fmt.Println("  mark-done <id>             - Пометить задачу как 'done'")
 	fmt.Println("  list [статус]              - Показать задачи (опционально: todo, in-progress, done)")
+	fmt.Println("  exit                      - Выйти из программы")
 }
 
 func main() {
 	loadTasks()
-	addTask("сегодня дрочим")
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		args := strings.SplitN(input, " ", 3)
+
+		switch args[0] {
+		case "add":
+			if len(args) < 2 {
+				fmt.Println("Ошибка: описание задачи отсутствует.")
+				continue
+			}
+			addTask(args[1])
+		case "update":
+			if len(args) < 3 {
+				fmt.Println("Ошибка: недостаточно аргументов для обновления задачи.")
+				continue
+			}
+			id := 0
+			fmt.Sscanf(args[1], "%d", &id)
+			updateTask(id, args[2])
+		case "delete":
+			if len(args) < 2 {
+				fmt.Println("Ошибка: ID задачи отсутствует.")
+				continue
+			}
+			id := 0
+			fmt.Sscanf(args[1], "%d", &id)
+			deleteTask(id)
+		case "mark-todo":
+			if len(args) < 2 {
+				fmt.Println("Ошибка: ID задачи отсутствует.")
+				continue
+			}
+			id := 0
+			fmt.Sscanf(args[1], "%d", &id)
+			markToDo(id)
+		case "mark-in-progress":
+			if len(args) < 2 {
+				fmt.Println("Ошибка: ID задачи отсутствует.")
+				continue
+			}
+			id := 0
+			fmt.Sscanf(args[1], "%d", &id)
+			markInProgress(id)
+		case "mark-done":
+			if len(args) < 2 {
+				fmt.Println("Ошибка: ID задачи отсутствует.")
+				continue
+			}
+			id := 0
+			fmt.Sscanf(args[1], "%d", &id)
+			markDone(id)
+		case "list":
+			status := ""
+			if len(args) == 2 {
+				status = args[1]
+			}
+			tasks := getTasks(status)
+			for _, task := range tasks {
+				fmt.Printf("ID: %d, Description: %s, Status: %s, CreatedAt: %s, UpdatedAt: %s\n",
+					task.ID, task.Description, task.Status, task.CreatedAt, task.UpdatedAt)
+			}
+		case "help":
+			printUsage()
+			continue
+		default:
+			fmt.Println("Неизвестная команда. Введите 'help' для списка команд.")
+		}
+
+		if args[0] == "exit" {
+			break
+		}
+	}
 }

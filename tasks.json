@@ -1,16 +1,1 @@
-[
-  {
-    "id": 1,
-    "description": "сегодня не дрочим",
-    "status": "todo",
-    "createdAt": "Sun, 26 Oct 2025 05:14:42 MSK",
-    "updatedAt": "none"
-  },
-  {
-    "id": 2,
-    "description": "сегодня дрочим",
-    "status": "todo",
-    "createdAt": "Sun, 26 Oct 2025 05:18:30 MSK",
-    "updatedAt": "none"
-  }
-]
+[]
